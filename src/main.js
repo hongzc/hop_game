@@ -28,6 +28,7 @@ function persistSave(s) {
 }
 
 let saveData = loadSave();
+let firstJumpTracked = false;
 
 registerStrings(gameStrings);
 tgReady();
@@ -87,9 +88,14 @@ function render() {
   });
   canvas.addEventListener('pointerup', () => {
     if (world.state !== 'charging') return;
+    const charge = (performance.now() - world.chargeStart) / 1100;  // 同 MAX_CHARGE_MS
     releaseCharge(world, performance.now());
     sfxPick();
     haptic('pick');
+    if (!firstJumpTracked) {
+      firstJumpTracked = true;
+      track('first_jump', { charge: Math.min(1, charge).toFixed(2) });
+    }
   });
   canvas.addEventListener('pointercancel', () => {
     // 取消蓄力（不起跳，直接回 idle）
