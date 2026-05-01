@@ -1,9 +1,9 @@
-import { tgReady, tgUser, tgPlatformInfo } from './shared/telegram.js';
+import { tgReady, tgUser, tgPlatformInfo, haptic } from './shared/telegram.js';
 import { registerStrings, t, getLocale, setLocale } from './shared/i18n.js';
-import { isMuted, toggleMute, unlockAudio } from './shared/audio.js';
+import { isMuted, toggleMute, unlockAudio, sfxPick, sfxMatch, sfxLose } from './shared/audio.js';
 import { identify, track } from './shared/analytics.js';
 import { gameStrings } from './strings.js';
-import { createWorld } from './game.js';
+import { createWorld, startCharge, releaseCharge, step } from './game.js';
 import { startRender } from './render.js';
 
 registerStrings(gameStrings);
@@ -16,8 +16,8 @@ track('app_loaded', { has_telegram_user: !!u, ...tgPlatformInfo() });
 window.addEventListener('pointerdown', unlockAudio, { once: true });
 window.addEventListener('touchstart', unlockAudio, { once: true });
 
-const world = createWorld();
-let charge = 0;     // 0..1，D2 接蓄力逻辑
+let world = createWorld();
+let scoreEl, bestEl;
 
 render();
 
@@ -28,14 +28,14 @@ function render() {
 
   // HUD
   const hud = el('div', 'hud');
-  const best = el('div', 'best', `${t('hop.best')} 0`);
-  const score = el('div', 'score', '0');
+  bestEl = el('div', 'best', `${t('hop.best')} 0`);
+  scoreEl = el('div', 'score', '0');
   const muteBtn = el('button', 'icon-btn', isMuted() ? '🔇' : '🔊');
   muteBtn.addEventListener('click', () => {
     toggleMute();
     muteBtn.textContent = isMuted() ? '🔇' : '🔊';
   });
-  hud.append(best, score, muteBtn);
+  hud.append(bestEl, scoreEl, muteBtn);
   screen.append(hud);
 
   // canvas
@@ -55,7 +55,48 @@ function render() {
 
   root.append(screen);
 
-  startRender(canvas, world, () => charge);
+  // pointer 事件 —— 整个 canvas 接管
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    if (world.state === 'dead') return;          // 等 D5 接 game over modal 后由 retry 触发
+    startCharge(world, performance.now());
+  });
+  canvas.addEventListener('pointerup', () => {
+    if (world.state !== 'charging') return;
+    releaseCharge(world, performance.now());
+    sfxPick();
+    haptic('pick');
+  });
+  canvas.addEventListener('pointercancel', () => {
+    // 取消蓄力（不起跳，直接回 idle）
+    if (world.state === 'charging') world.state = 'idle';
+  });
+
+  // 主循环驱动 step + 处理 lastEvent 的副作用
+  startRender(canvas, world, (dt) => {
+    step(world, dt);
+    drainEvents();
+  });
+}
+
+function drainEvents() {
+  if (!world.lastEvent) return;
+  const ev = world.lastEvent;
+  world.lastEvent = null;
+  if (ev === 'precision') {
+    sfxMatch();
+    haptic('match');
+  } else if (ev === 'land') {
+    sfxPick();
+    haptic('pick');
+  } else if (ev === 'miss') {
+    sfxLose();
+    haptic('lose');
+    track('game_over', { score: world.score });
+  }
+  // 同步 HUD
+  if (scoreEl) scoreEl.textContent = String(world.score);
 }
 
 function el(tag, cls, text) {
