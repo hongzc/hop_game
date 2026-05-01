@@ -105,19 +105,10 @@ export function startRender(canvas, world, stepWorld) {
       ctx.globalAlpha = 1;
     }
 
-    // dead 状态：暗化 + 提示（D5 替换为 result-modal）
+    // dead 时画面轻微暗化（result-modal 是 DOM overlay，叠在 canvas 之上）
     if (world.state === 'dead') {
-      ctx.fillStyle = 'rgba(0, 30, 60, 0.45)';
+      ctx.fillStyle = 'rgba(0, 30, 60, 0.25)';
       ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.font = `bold ${28 * sx}px system-ui, sans-serif`;
-      ctx.fillText('Game Over', w / 2, h * 0.4);
-      ctx.font = `${16 * sx}px system-ui, sans-serif`;
-      ctx.fillText(`Score ${world.score}`, w / 2, h * 0.5);
-      ctx.font = `${14 * sx}px system-ui, sans-serif`;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillText('Tap to retry', w / 2, h * 0.6);
     }
   }
 

@@ -1,11 +1,33 @@
-import { tgReady, tgUser, tgPlatformInfo, haptic } from './shared/telegram.js';
+import { tgReady, tgUser, tgPlatformInfo, haptic, openTelegramLink } from './shared/telegram.js';
 import { registerStrings, t, getLocale, setLocale } from './shared/i18n.js';
-import { isMuted, toggleMute, unlockAudio, sfxPick, sfxMatch, sfxLose } from './shared/audio.js';
-import { fireConfettiAt } from './shared/confetti.js';
+import { isMuted, toggleMute, unlockAudio, sfxPick, sfxMatch, sfxLose, sfxWin } from './shared/audio.js';
+import { fireConfettiAt, fireWinConfetti } from './shared/confetti.js';
 import { identify, track } from './shared/analytics.js';
+import { load, save as saveStore } from './shared/storage.js';
+import { showResultModal } from './shared/result-modal.js';
 import { gameStrings } from './strings.js';
 import { createWorld, startCharge, releaseCharge, step, resetWorld } from './game.js';
 import { startRender } from './render.js';
+
+const SAVE_KEY = 'hop_save_v1';
+const FOLLOW_URL = 'https://t.me/tinypaws_games';
+
+function loadSave() {
+  try {
+    const raw = load(SAVE_KEY);
+    if (!raw) return { highScore: 0 };
+    const obj = JSON.parse(raw);
+    return { highScore: obj.highScore || 0 };
+  } catch {
+    return { highScore: 0 };
+  }
+}
+
+function persistSave(s) {
+  saveStore(SAVE_KEY, JSON.stringify(s));
+}
+
+let saveData = loadSave();
 
 registerStrings(gameStrings);
 tgReady();
@@ -29,8 +51,8 @@ function render() {
 
   // HUD
   const hud = el('div', 'hud');
-  bestEl = el('div', 'best', `${t('hop.best')} 0`);
-  scoreEl = el('div', 'score', '0');
+  bestEl = el('div', 'best', `${t('hop.best')} ${saveData.highScore}`);
+  scoreEl = el('div', 'score', String(world.score));
   const muteBtn = el('button', 'icon-btn', isMuted() ? '🔇' : '🔊');
   muteBtn.addEventListener('click', () => {
     toggleMute();
@@ -60,11 +82,7 @@ function render() {
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     canvas.setPointerCapture(e.pointerId);
-    if (world.state === 'dead') {
-      resetWorld(world);
-      if (scoreEl) scoreEl.textContent = '0';
-      return;
-    }
+    if (world.state === 'dead') return;            // dead 由 modal 的 retry 按钮接管
     startCharge(world, performance.now());
   });
   canvas.addEventListener('pointerup', () => {
@@ -100,12 +118,52 @@ function drainEvents() {
     sfxPick();
     haptic('pick');
   } else if (ev === 'miss') {
-    sfxLose();
-    haptic('lose');
-    track('game_over', { score: world.score });
+    onGameOver();
   }
   // 同步 HUD
   if (scoreEl) scoreEl.textContent = String(world.score);
+}
+
+function onGameOver() {
+  const previousBest = saveData.highScore;
+  const isNewBest = world.score > previousBest;
+  if (isNewBest) {
+    saveData.highScore = world.score;
+    persistSave(saveData);
+    if (bestEl) bestEl.textContent = `${t('hop.best')} ${saveData.highScore}`;
+  }
+  track('game_over', { score: world.score, high_score: saveData.highScore, new_best: isNewBest });
+
+  if (isNewBest) {
+    sfxWin();
+    haptic('win');
+    fireWinConfetti();
+  } else {
+    sfxLose();
+    haptic('lose');
+  }
+
+  showResultModal(
+    {
+      won: isNewBest,
+      primaryStat: `${t('hop.score')} ${world.score} · ${t('hop.best')} ${saveData.highScore}`,
+      loseSub: `${t('hop.score')} ${world.score} · ${t('hop.best')} ${saveData.highScore}`,
+      winEmoji: '🦘',
+      loseEmoji: '😿',
+      followUrl: FOLLOW_URL,
+    },
+    {
+      onRetry: () => {
+        document.querySelector('.modal-overlay')?.remove();
+        resetWorld(world);
+        if (scoreEl) scoreEl.textContent = '0';
+      },
+      onFollow: isNewBest ? () => {
+        track('follow_clicked', { source: 'hop_win_modal' });
+        openTelegramLink(FOLLOW_URL);
+      } : undefined,
+    },
+  );
 }
 
 function el(tag, cls, text) {
