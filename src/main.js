@@ -3,7 +3,7 @@ import { registerStrings, t, getLocale, setLocale } from './shared/i18n.js';
 import { isMuted, toggleMute, unlockAudio, sfxPick, sfxMatch, sfxLose } from './shared/audio.js';
 import { identify, track } from './shared/analytics.js';
 import { gameStrings } from './strings.js';
-import { createWorld, startCharge, releaseCharge, step } from './game.js';
+import { createWorld, startCharge, releaseCharge, step, resetWorld } from './game.js';
 import { startRender } from './render.js';
 
 registerStrings(gameStrings);
@@ -59,7 +59,11 @@ function render() {
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     canvas.setPointerCapture(e.pointerId);
-    if (world.state === 'dead') return;          // 等 D5 接 game over modal 后由 retry 触发
+    if (world.state === 'dead') {
+      resetWorld(world);
+      if (scoreEl) scoreEl.textContent = '0';
+      return;
+    }
     startCharge(world, performance.now());
   });
   canvas.addEventListener('pointerup', () => {
