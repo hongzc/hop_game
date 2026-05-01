@@ -1,0 +1,92 @@
+/* 结果弹窗 + 通用按钮样式。配合 shared/result-modal.js 使用。 */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 10, 40, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fade-in 0.22s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 22px;
+  padding: 30px 24px;
+  width: min(86vw, 360px);
+  text-align: center;
+  animation: pop-in 0.26s cubic-bezier(.2,.9,.3,1.4);
+  box-shadow: 0 20px 60px rgba(80, 30, 120, 0.3);
+}
+
+@keyframes pop-in {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-emoji {
+  font-size: 56px;
+  margin-bottom: 8px;
+}
+
+.modal-title {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 4px;
+  background: linear-gradient(135deg, #581c87, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.modal-sub {
+  color: var(--hint);
+  margin-bottom: 22px;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn {
+  padding: 13px 16px;
+  font-size: 16px;
+  font-family: inherit;
+  border: none;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.4);
+}
+
+.btn.follow {
+  background: linear-gradient(135deg, #FFB766, #FF8C42);
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(255, 140, 66, 0.35);
+}
