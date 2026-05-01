@@ -50,6 +50,14 @@ export function startRender(canvas, world, stepWorld) {
     const px = (world.player.x - world.camera.x) * sx;
     const py = world.player.y * sx;
     const r = PLAYER_R * sx;
+    // 精准着陆闪光（外发光）
+    if (world.flashMs > 0) {
+      const a = world.flashMs / 220;
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(245, 158, 11, ${0.5 * a})`;
+      ctx.arc(px, py, r * (1 + 0.6 * a), 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.beginPath();
     ctx.fillStyle = '#fb923c';
     ctx.arc(px, py, r, 0, Math.PI * 2);
@@ -80,6 +88,21 @@ export function startRender(canvas, world, stepWorld) {
       grad.addColorStop(1, '#f59e0b');
       ctx.fillStyle = grad;
       ctx.fillRect(bx, by, barW * Math.min(1, charge), barH);
+    }
+
+    // 浮动得分提示
+    for (const pop of world.popups) {
+      const t = pop.ageMs / pop.lifeMs;        // 0..1
+      const alpha = 1 - t;
+      const drift = -28 * t;                   // 向上漂
+      const popX = (pop.x - world.camera.x) * sx;
+      const popY = (pop.y + drift) * sx;
+      ctx.font = `bold ${15 * sx}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = pop.color;
+      ctx.globalAlpha = alpha;
+      ctx.fillText(pop.text, popX, popY);
+      ctx.globalAlpha = 1;
     }
 
     // dead 状态：暗化 + 提示（D5 替换为 result-modal）

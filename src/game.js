@@ -44,6 +44,8 @@ export function createWorld() {
     score: 0,
     combo: 0,
     lastEvent: null,
+    popups: [],          // 浮动得分提示 [{x, y, text, color, ageMs, lifeMs}]
+    flashMs: 0,           // 玩家精准着陆时的闪光残留
   };
   ensurePlatforms(world);
   return world;
@@ -76,6 +78,13 @@ export function step(world, dt) {
   const targetCamX = Math.max(0, world.player.x - CAMERA_PLAYER_X);
   world.camera.x += (targetCamX - world.camera.x) * Math.min(1, dt * 8);
 
+  // 推进 popups 时间，淘汰过期
+  if (world.popups.length) {
+    for (const pop of world.popups) pop.ageMs += dt * 1000;
+    world.popups = world.popups.filter(p => p.ageMs < p.lifeMs);
+  }
+  if (world.flashMs > 0) world.flashMs = Math.max(0, world.flashMs - dt * 1000);
+
   if (world.state !== 'jumping') return;
   const p = world.player;
   p.vy += GRAVITY * dt;
@@ -107,16 +116,26 @@ export function step(world, dt) {
     const dist = Math.abs(p.x - center);
     if (dist < PRECISION_R) {
       world.combo += 1;
-      world.score += 1 + 2 * world.combo;
+      const gain = 1 + 2 * world.combo;
+      world.score += gain;
       world.lastEvent = 'precision';
+      world.flashMs = 220;
+      pushPopup(world, p.x, plat.y - PLAYER_R - 10,
+        world.combo > 1 ? `Combo x${world.combo} +${gain}` : `Precision +${gain}`,
+        '#f59e0b');
     } else {
       world.combo = 0;
       world.score += 1;
       world.lastEvent = 'land';
+      pushPopup(world, p.x, plat.y - PLAYER_R - 10, '+1', '#0ea5e9');
     }
     ensurePlatforms(world);
     return;
   }
+}
+
+function pushPopup(world, x, y, text, color) {
+  world.popups.push({ x, y, text, color, ageMs: 0, lifeMs: 900 });
 }
 
 // 玩家所站平台之后保持 PLATFORMS_AHEAD 块预生成

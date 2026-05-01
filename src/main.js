@@ -1,6 +1,7 @@
 import { tgReady, tgUser, tgPlatformInfo, haptic } from './shared/telegram.js';
 import { registerStrings, t, getLocale, setLocale } from './shared/i18n.js';
 import { isMuted, toggleMute, unlockAudio, sfxPick, sfxMatch, sfxLose } from './shared/audio.js';
+import { fireConfettiAt } from './shared/confetti.js';
 import { identify, track } from './shared/analytics.js';
 import { gameStrings } from './strings.js';
 import { createWorld, startCharge, releaseCharge, step, resetWorld } from './game.js';
@@ -91,6 +92,10 @@ function drainEvents() {
   if (ev === 'precision') {
     sfxMatch();
     haptic('match');
+    if (world.combo >= 3 && world.combo % 3 === 0) {
+      fireConfettiAt(document.querySelector('#game'));
+      track('combo_milestone', { combo: world.combo });
+    }
   } else if (ev === 'land') {
     sfxPick();
     haptic('pick');
